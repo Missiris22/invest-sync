@@ -1,16 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Smartphone, LogIn } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const Login: React.FC = () => {
-  const { login } = useApp();
+  const { login, currentUser } = useApp();
   const [phone, setPhone] = useState('');
   const [name, setName] = useState('');
+  const navigate = useNavigate();
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (currentUser) {
+      navigate('/');
+    }
+  }, [currentUser, navigate]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (phone && name) {
       login(phone, name);
+      // The useEffect will handle the navigation once currentUser is set
     }
   };
 

@@ -1,8 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Holding, MarketTrend } from "../types";
 
-const apiKey = process.env.API_KEY || '';
-const ai = new GoogleGenAI({ apiKey });
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 // Helper to clean JSON string if Markdown code blocks are present
 const cleanJsonString = (str: string) => {
