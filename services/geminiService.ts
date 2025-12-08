@@ -1,8 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Holding, MarketTrend } from "../types";
 
-// Get API key from environment variables (Vite handles this in browser)
-const apiKey = import.meta.env.VITE_API_KEY;
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 // Helper to clean JSON string if Markdown code blocks are present
 const cleanJsonString = (str: string) => {
@@ -22,16 +21,7 @@ const cleanJsonString = (str: string) => {
  * Analyzes an investment screenshot (e.g., Alipay/Broker) to extract holdings.
  */
 export const analyzeScreenshot = async (base64Image: string): Promise<Partial<Holding>[]> => {
-  // Check if API key is available
-  if (!apiKey) {
-    console.error("API key is not set. Please configure VITE_API_KEY in .env.local file.");
-    return [];
-  }
-
   try {
-    // Create GenAI instance only when needed and API key is available
-    const ai = new GoogleGenAI({ apiKey });
-    
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: {
@@ -93,21 +83,12 @@ export const analyzeScreenshot = async (base64Image: string): Promise<Partial<Ho
  */
 export const analyzeMarketTrends = async (holdings: Holding[]): Promise<MarketTrend[]> => {
   if (holdings.length === 0) return [];
-  
-  // Check if API key is available
-  if (!apiKey) {
-    console.error("API key is not set. Please configure VITE_API_KEY in .env.local file.");
-    return [];
-  }
 
   // Group by unique symbol to avoid duplicate requests
   const symbols = Array.from(new Set(holdings.map(h => h.name + (h.symbol ? ` (${h.symbol})` : ''))));
   const queryList = symbols.join(", ");
 
   try {
-    // Create GenAI instance only when needed and API key is available
-    const ai = new GoogleGenAI({ apiKey });
-    
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: `Search for the latest financial news and market sentiment for the following assets: ${queryList}. 
