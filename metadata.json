@@ -1,0 +1,5 @@
+{
+  "name": "InvestSync",
+  "description": "A collaborative investment tracking and communication platform allowing teams to share holdings, analyze trends using AI, and manage portfolios via screenshot recognition.",
+  "requestFramePermissions": []
+}
