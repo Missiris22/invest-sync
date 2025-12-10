@@ -12,6 +12,8 @@ const auth = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, JWT_SECRET);
+    
+    // Find user from MongoDB using the decoded ID
     const user = await User.findById(decoded.id);
 
     if (!user) {

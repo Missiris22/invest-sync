@@ -1,11 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
+const auth = require('../middleware/auth');
 const User = require('../models/User');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_super_secret_key_123';
 
-// Login or Register (Upsert)
+// Login or Register (Upsert) - Using MongoDB
 router.post('/login', async (req, res) => {
   try {
     const { phone, name } = req.body;
@@ -14,26 +15,18 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: 'Phone and name are required' });
     }
 
-    let user = await User.findOne({ phone });
+    // Create or update user in MongoDB
+    const user = await User.findOneAndUpdate(
+      { phone },
+      { name, joinedAt: Date.now() },
+      { upsert: true, new: true, runValidators: true }
+    );
 
-    if (!user) {
-      user = new User({ phone, name });
-      await user.save();
-    } else if (user.name !== name) {
-      // Update name if changed
-      user.name = name;
-      await user.save();
-    }
-
+    // Generate JWT token
     const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '30d' });
 
     res.json({
-      user: {
-        id: user._id,
-        phone: user.phone,
-        name: user.name,
-        joinedAt: user.joinedAt
-      },
+      user,
       token
     });
   } catch (error) {
@@ -41,14 +34,20 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Get current user (Verify Token)
-router.get('/me', require('../middleware/auth'), async (req, res) => {
-  res.json({
-    id: req.user._id,
-    phone: req.user.phone,
-    name: req.user.name,
-    joinedAt: req.user.joinedAt
-  });
+// Get current user (Verify Token) - Protected route with JWT validation
+router.get('/me', auth, async (req, res) => {
+  try {
+    // Find user by ID from the request object (set by auth middleware)
+    const user = await User.findById(req.user.id);
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 });
 
 module.exports = router;

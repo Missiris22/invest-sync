@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const Room = require('../models/Room');
 const auth = require('../middleware/auth');
+const Room = require('../models/Room');
+const User = require('../models/User');
 
 // Helper to generate unique 4 digit code
 const generateCode = async () => {
@@ -9,20 +10,21 @@ const generateCode = async () => {
   let isUnique = false;
   while (!isUnique) {
     code = Math.floor(1000 + Math.random() * 9000).toString();
+    // Check if code is already used in any room in MongoDB
     const existing = await Room.findOne({ code });
     if (!existing) isUnique = true;
   }
   return code;
 };
 
-// Create Room
+// Create Room - Protected route
 router.post('/', auth, async (req, res) => {
   try {
     const code = await generateCode();
     const room = new Room({
       code,
       host: req.user._id,
-      members: [req.user._id]
+      members: [req.user._id],
     });
     await room.save();
     res.status(201).json(room);
@@ -31,7 +33,7 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
-// Join Room
+// Join Room - Protected route
 router.post('/join', auth, async (req, res) => {
   try {
     const { code } = req.body;
@@ -53,23 +55,25 @@ router.post('/join', auth, async (req, res) => {
   }
 });
 
-// Get Current User's Active Room (Simple logic: just return the last room they joined/created for now, or match specific ID)
-// In a real app, users might be in multiple rooms, but per spec "enter A room".
+// Get Current User's Active Room - Protected route
 router.get('/active', auth, async (req, res) => {
   try {
-    // Find a room where the user is a member, sort by most recently created
-    const room = await Room.findOne({ members: req.user._id })
-      .sort({ createdAt: -1 })
-      .populate('members', 'id name phone') // Populate member details
-      .populate('host', 'id name');
-      
-    res.json(room); // Returns null if no room
+    // Find the first room where user is a member
+    const userRoom = await Room.findOne({ members: req.user._id })
+      .populate('members', 'id name phone')
+      .populate('host', 'id name phone');
+    
+    if (!userRoom) {
+      return res.json(null); // No active room
+    }
+    
+    res.json(userRoom);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
 
-// Leave Room
+// Leave Room - Protected route
 router.post('/leave', auth, async (req, res) => {
   try {
     const { code } = req.body;
@@ -77,14 +81,20 @@ router.post('/leave', auth, async (req, res) => {
 
     if (!room) return res.status(404).json({ message: 'Room not found' });
 
+    // Remove user from members
     room.members = room.members.filter(memberId => memberId.toString() !== req.user._id.toString());
     
-    // If room is empty, optionally delete it
     if (room.members.length === 0) {
-      await Room.deleteOne({ _id: room._id });
+      // If room is empty, delete it
+      await room.deleteOne();
       return res.json({ message: 'Left room and room deleted' });
     }
-
+    
+    // If user was host, transfer host to another member
+    if (room.host.toString() === req.user._id.toString()) {
+      room.host = room.members[0];
+    }
+    
     await room.save();
     res.json({ message: 'Left room successfully' });
   } catch (error) {
@@ -92,7 +102,7 @@ router.post('/leave', auth, async (req, res) => {
   }
 });
 
-// Kick Member (Host Only)
+// Kick Member (Host Only) - Protected route
 router.post('/kick', auth, async (req, res) => {
   try {
     const { code, userIdToKick } = req.body;
@@ -104,9 +114,10 @@ router.post('/kick', auth, async (req, res) => {
       return res.status(403).json({ message: 'Only host can kick members' });
     }
 
+    // Remove user from members
     room.members = room.members.filter(memberId => memberId.toString() !== userIdToKick);
-    await room.save();
     
+    await room.save();
     res.json(room);
   } catch (error) {
     res.status(500).json({ message: error.message });
