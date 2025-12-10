@@ -226,8 +226,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
     if (currentRoom) {
       const interval = setInterval(async () => {
         try {
-          const freshRoom = await roomAPI.getById(currentRoom.code);
-          setCurrentRoom(freshRoom);
+          const freshRoom = await roomAPI.getActive();
+          // 只有当获取到有效房间时才更新，避免将currentRoom设置为null
+          if (freshRoom) {
+            setCurrentRoom(freshRoom);
+          }
         } catch (error) {
           console.error("Failed to sync room data:", error);
         }

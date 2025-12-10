@@ -87,21 +87,23 @@ export const roomAPI = {
   },
   
   // 离开房间
-  leave: async (roomId: string) => {
-    return apiRequest<void>(`/rooms/${roomId}/leave`, {
+  leave: async (code: string) => {
+    return apiRequest<void>('/rooms/leave', {
       method: 'POST',
+      body: JSON.stringify({ code }),
     });
   },
   
-  // 获取房间详情
-  getById: async (roomId: string) => {
-    return apiRequest<Room>(`/rooms/${roomId}`);
+  // 获取当前用户的活跃房间
+  getActive: async () => {
+    return apiRequest<Room | null>('/rooms/active');
   },
   
   // 踢出成员
-  kickMember: async (roomId: string, userId: string) => {
-    return apiRequest<void>(`/rooms/${roomId}/kick/${userId}`, {
+  kickMember: async (code: string, userIdToKick: string) => {
+    return apiRequest<void>('/rooms/kick', {
       method: 'POST',
+      body: JSON.stringify({ code, userIdToKick }),
     });
   },
 };
